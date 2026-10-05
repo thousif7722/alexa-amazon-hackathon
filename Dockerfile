@@ -3,7 +3,7 @@
 # ====================================================================
 FROM node:20-alpine AS base
 
-RUN apk add --no-libc-compat python3 make g++ git
+RUN apk add --no-cache python3 make g++ git
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
@@ -11,6 +11,7 @@ WORKDIR /app
 # Copy package manifests
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/types/package.json ./packages/types/
+COPY packages/config/package.json ./packages/config/
 COPY packages/validation/package.json ./packages/validation/
 COPY packages/tools/package.json ./packages/tools/
 COPY packages/agent/package.json ./packages/agent/
@@ -36,4 +37,4 @@ EXPOSE 3000 3001
 RUN mkdir -p /app/data
 
 # Start script running both MCP server and Next.js web server
-CMD ["sh", "-c", "node apps/mcp-server/dist/index.js & node apps/web/server.js || pnpm --filter @actionos/web start"]
+CMD ["sh", "-c", "node apps/mcp-server/dist/index.js & pnpm --filter @actionos/web start"]
