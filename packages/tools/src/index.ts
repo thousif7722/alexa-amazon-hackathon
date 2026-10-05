@@ -8,9 +8,31 @@ export * from './web-search/mock-provider.js';
 export * from './web-search/url-validator.js';
 export * from './web-search/page-fetcher.js';
 export * from './web-search/tools.js';
+export * from './travel/tools.js';
+export * from './adapters/service-adapter.js';
 
 import { oneWayFixTools } from './onewayfix/tools.js';
 import { webSearchTools } from './web-search/tools.js';
+import {
+  searchPlacesTool,
+  planItineraryTool,
+  calculateRouteTool,
+  searchHotelsTool,
+} from './travel/tools.js';
+import { externalServiceAdapterTool } from './adapters/service-adapter.js';
 
-export const allTools = [...webSearchTools, ...oneWayFixTools];
+export const travelTools = [
+  searchPlacesTool,
+  planItineraryTool,
+  calculateRouteTool,
+  searchHotelsTool,
+];
 
+export const adapterTools = [externalServiceAdapterTool];
+
+export const allTools = [
+  ...webSearchTools,
+  ...oneWayFixTools,
+  ...travelTools,
+  ...adapterTools,
+];

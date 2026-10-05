@@ -1,22 +1,35 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import {
   Mic,
   MicOff,
   Send,
   Volume2,
   VolumeX,
+  Plus,
+  Compass,
   Wrench,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Sparkles,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Navigation,
   ExternalLink,
+  ShieldCheck,
   ShieldAlert,
+  Settings,
+  User,
+  MessageSquare,
+  Bookmark,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
   Server,
-  RefreshCw,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  Menu,
 } from 'lucide-react';
 
 interface ToolLog {
@@ -28,67 +41,57 @@ interface ToolLog {
   durationMs?: number;
 }
 
-interface BookingCardData {
-  bookingId: string;
-  customerName: string;
-  phone: string;
-  service: string;
-  address: string;
-  preferredTime: string;
-  status: string;
-  source: string;
-}
-
-interface ConfirmationCardData {
-  title: string;
-  details: Array<{ label: string; value: string }>;
-  pendingAction: any;
-}
-
 interface Message {
   id: string;
-  sender: 'user' | 'alexa';
+  sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
   isFallback?: boolean;
-  confirmationCard?: ConfirmationCardData;
-  bookingCard?: BookingCardData;
+  toolLogs?: ToolLog[];
+  confirmationCard?: any;
+  bookingCard?: any;
+  travelCard?: any;
 }
 
-export default function AlexaPlusOneWayFixPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome-1',
-      sender: 'alexa',
-      text: "Hello! I am Alexa+ powered by Amazon Bedrock Nova & OneWayFix MCP tools. I can answer home-repair questions like an experienced technician, or help you book, check, and manage services. How can I help you today?",
-      timestamp: '10:00 AM',
-    },
-  ]);
+interface ChatSession {
+  id: string;
+  title: string;
+  timestamp: string;
+  messages: Message[];
+}
 
+export default function ActionOSPage() {
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('');
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [toolLogs, setToolLogs] = useState<ToolLog[]>([
-    {
-      id: 'init-log',
-      name: 'initialize',
-      status: 'success',
-      resultSummary: 'Connected to Streamable HTTP MCP server @ /mcp',
-      timestamp: '10:00 AM',
-      durationMs: 12,
-    },
-  ]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Settings & Profile State
+  const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
+
+  // Config State
+  const [modelProvider, setModelProvider] = useState('gemini');
+  const [geminiModel, setGeminiModel] = useState('gemini-2.5-flash');
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
 
+  // User Profile State
+  const [userProfile, setUserProfile] = useState({
+    name: 'Priya Verma',
+    city: 'Hyderabad',
+    travelPreference: 'Heritage & Food',
+    budgetStyle: 'Moderate',
+  });
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
-
+  // Initialize Speech & Sessions
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition =
@@ -103,444 +106,660 @@ export default function AlexaPlusOneWayFixPage() {
 
         recog.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript;
-          if (transcript) {
-            setInputText(transcript);
-            handleSendMessage(transcript);
-          }
+          setInputText(transcript);
+          setIsListening(false);
+          handleSendMessage(transcript);
         };
 
-        recog.onend = () => setIsListening(false);
         recog.onerror = () => setIsListening(false);
+        recog.onend = () => setIsListening(false);
+
         recognitionRef.current = recog;
       }
     }
+
+    // Load initial session
+    const defaultId = `session-${Date.now()}`;
+    const initialSession: ChatSession = {
+      id: defaultId,
+      title: 'New Chat',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      messages: [],
+    };
+    setSessions([initialSession]);
+    setActiveSessionId(defaultId);
   }, []);
 
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
   const speakText = (text: string) => {
-    if (!speechEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (!speechEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-    const cleanText = text.replace(/[*_#]/g, '');
+
+    const cleanText = text
+      .replace(/[*_#`🌐🔍✅⚠️📍✈️🛠🍽🛵🛒💬]/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .slice(0, 300);
+
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
   };
 
-  const toggleListening = () => {
+  const toggleVoiceInput = () => {
     if (!recognitionRef.current) return;
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
-      setIsListening(true);
-      recognitionRef.current.start();
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (_e) {
+        setIsListening(false);
+      }
     }
   };
 
-  const handleSendMessage = async (customText?: string) => {
-    const textToSend = customText || inputText;
-    if (!textToSend.trim() || isLoading) return;
+  const createNewChat = () => {
+    const newId = `session-${Date.now()}`;
+    const newSession: ChatSession = {
+      id: newId,
+      title: 'New Chat',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      messages: [],
+    };
+    setSessions((prev) => [newSession, ...prev]);
+    setActiveSessionId(newId);
+    setMessages([]);
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
+  const handleSendMessage = async (textToSend?: string, confirmationResponse?: any) => {
+    const prompt = (textToSend || inputText).trim();
+    if (!prompt && !confirmationResponse) return;
+
+    if (!confirmationResponse) {
+      setInputText('');
+    }
 
     const userMsgId = `user-${Date.now()}`;
-    const userMsg: Message = {
-      id: userMsgId,
-      sender: 'user',
-      text: textToSend,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
+    const updatedMessages: Message[] = confirmationResponse
+      ? [...messages]
+      : [
+          ...messages,
+          {
+            id: userMsgId,
+            sender: 'user',
+            text: prompt,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ];
 
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInputText('');
+    setMessages(updatedMessages);
     setIsLoading(true);
 
+    // Update session title on first message
+    if (updatedMessages.length === 1 && !confirmationResponse) {
+      const title = prompt.length > 28 ? `${prompt.slice(0, 28)}...` : prompt;
+      setSessions((prev) =>
+        prev.map((s) => (s.id === activeSessionId ? { ...s, title } : s))
+      );
+    }
+
     try {
-      const res = await fetch('/api/assistant', {
+      const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: textToSend,
-          messages: newMessages.map((m) => ({
+          prompt: confirmationResponse ? undefined : prompt,
+          messages: updatedMessages.map((m) => ({
             role: m.sender === 'user' ? 'user' : 'assistant',
-            content: [{ text: m.text }],
+            content: m.text,
           })),
+          sessionId: activeSessionId,
+          userId: 'user-default',
+          confirmationResponse,
+          modelProvider,
         }),
       });
 
-      const data = await res.json();
-      setIsLoading(false);
+      const data = await response.json();
 
-      if (data.toolLogs && Array.isArray(data.toolLogs)) {
-        setToolLogs((prev) => [...data.toolLogs, ...prev]);
-      }
-
-      const alexaMsgId = `alexa-${Date.now()}`;
-      const alexaMsg: Message = {
-        id: alexaMsgId,
-        sender: 'alexa',
-        text: data.text || 'Done!',
-        isFallback: data.isFallback,
+      const assistantMsg: Message = {
+        id: `assistant-${Date.now()}`,
+        sender: 'assistant',
+        text: data.text || 'I have completed your request.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isFallback: data.isFallback,
+        toolLogs: data.toolLogs || [],
         confirmationCard: data.confirmationCard,
         bookingCard: data.bookingCard,
+        travelCard: data.travelCard,
       };
 
-      setMessages((prev) => [...prev, alexaMsg]);
-      speakText(alexaMsg.text);
+      const finalMessages = [...updatedMessages, assistantMsg];
+      setMessages(finalMessages);
+
+      setSessions((prev) =>
+        prev.map((s) => (s.id === activeSessionId ? { ...s, messages: finalMessages } : s))
+      );
+
+      if (speechEnabled) {
+        speakText(data.text);
+      }
     } catch (_err) {
-      setIsLoading(false);
       const errorMsg: Message = {
         id: `err-${Date.now()}`,
-        sender: 'alexa',
-        text: 'Sorry, I encountered a communication error with the backend agent service.',
+        sender: 'assistant',
+        text: '⚠️ I encountered an error connecting to ActionOS services. Please try again.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
-    }
-  };
-
-  const handleConfirmationAction = async (action: 'confirm' | 'cancel', pendingAction: any) => {
-    if (isLoading) return;
-    setIsLoading(true);
-
-    const userMsg: Message = {
-      id: `user-confirm-${Date.now()}`,
-      sender: 'user',
-      text: action === 'confirm' ? 'Yes, I confirm this booking.' : 'No, cancel this request.',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-
-    try {
-      const res = await fetch('/api/assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          confirmationResponse: { action, pendingAction },
-        }),
-      });
-
-      const data = await res.json();
-      setIsLoading(false);
-
-      if (data.toolLogs && Array.isArray(data.toolLogs)) {
-        setToolLogs((prev) => [...data.toolLogs, ...prev]);
-      }
-
-      const alexaMsg: Message = {
-        id: `alexa-resp-${Date.now()}`,
-        sender: 'alexa',
-        text: data.text || (action === 'confirm' ? 'Booking submitted successfully!' : 'Cancelled.'),
-        isFallback: data.isFallback,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        bookingCard: data.bookingCard,
-      };
-
-      setMessages((prev) => [...prev, alexaMsg]);
-      speakText(alexaMsg.text);
-    } catch (_err) {
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const quickChips = [
-    'Search Hyderabad tourist places',
-    'What services do you offer?',
-    'Why is my AC not cooling?',
-    'Book a washing machine repair for tomorrow',
-    'Check my booking status',
-  ];
+  const handleQuickChipClick = (query: string) => {
+    setInputText(query);
+    handleSendMessage(query);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
-      {/* 1. App Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30 px-4 py-3">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-cyan-500/20">
-              <Sparkles className="w-5 h-5" />
+    <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
+      {/* 1. Left Sidebar */}
+      <aside
+        className={`fixed md:static inset-y-0 left-0 z-40 w-72 bg-slate-900 border-r border-slate-800/80 flex flex-col transition-transform duration-300 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        {/* Brand & New Chat */}
+        <div className="p-4 border-b border-slate-800/80 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <Sparkles className="w-5 h-5 text-slate-950 font-bold" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
+                  ActionOS
+                </h1>
+                <p className="text-[10px] text-cyan-400/90 font-medium">AI Agent & MCP Workflows</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden p-1.5 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <button
+            onClick={createNewChat}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm transition-all shadow-md shadow-cyan-500/10 active:scale-[0.98]"
+          >
+            <Plus className="w-4 h-4" />
+            New Agent Chat
+          </button>
+        </div>
+
+        {/* Navigation / Recent Chats */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            Recent Conversations
+          </div>
+
+          {sessions.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => {
+                setActiveSessionId(s.id);
+                setMessages(s.messages);
+                if (window.innerWidth < 768) setSidebarOpen(false);
+              }}
+              className={`w-full text-left py-2.5 px-3 rounded-lg flex items-center gap-2.5 text-sm transition-colors ${
+                s.id === activeSessionId
+                  ? 'bg-slate-800/90 text-cyan-300 font-medium border border-cyan-500/20'
+                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              <span className="truncate flex-1">{s.title}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* User Profile & Settings Footer */}
+        <div className="p-3 border-t border-slate-800/80 bg-slate-900/50 flex items-center justify-between">
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-800 transition-colors text-left"
+          >
+            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-cyan-400">
+              PV
             </div>
             <div>
-              <h1 className="font-semibold text-base text-slate-100 flex items-center gap-2">
-                ActionOS · Alexa+ for OneWayFix
-              </h1>
-              <p className="text-xs text-slate-400">Bedrock Nova Agent & MCP Standard Tools</p>
+              <div className="text-xs font-semibold text-slate-200">{userProfile.name}</div>
+              <div className="text-[10px] text-slate-500">{userProfile.city}</div>
             </div>
+          </button>
+
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-lg transition-colors"
+            title="ActionOS Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/60 md:hidden backdrop-blur-sm"
+        />
+      )}
+
+      {/* 2. Main Content Area */}
+      <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-950">
+        {/* Top Header */}
+        <header className="h-14 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md px-4 flex items-center justify-between z-10">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-1.5 text-slate-400 hover:text-white"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <span className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              ActionOS Assistant
+              <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                {modelProvider.toUpperCase()}
+              </span>
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSpeechEnabled(!speechEnabled)}
-              title={speechEnabled ? 'Mute Speech Output' : 'Unmute Speech Output'}
-              className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors border border-slate-700/50"
+              className={`p-2 rounded-lg text-xs flex items-center gap-1.5 transition-colors ${
+                speechEnabled ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'text-slate-500 hover:text-slate-400'
+              }`}
             >
-              {speechEnabled ? <Volume2 className="w-5 h-5 text-cyan-400" /> : <VolumeX className="w-5 h-5 text-slate-500" />}
+              {speechEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              <span className="hidden sm:inline">{speechEnabled ? 'Audio On' : 'Audio Off'}</span>
             </button>
-
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Mock Mode (ONEWAYFIX_MOCK=true)
-            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* 2. Main Content Grid */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 flex flex-col md:flex-row gap-6">
-        {/* Left Column: Voice & Chat Interface */}
-        <section className="flex-1 flex flex-col glass-panel rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
-          {/* Messages Area */}
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-4 max-h-[600px] min-h-[420px]">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {msg.sender === 'alexa' && (
-                  <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 flex-shrink-0 mt-1">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                )}
+        {/* Message / Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 max-w-4xl mx-auto w-full">
+          {messages.length === 0 ? (
+            /* Welcome / Category Screen */
+            <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 space-y-8">
+              <div className="space-y-3">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center mx-auto shadow-xl shadow-cyan-500/20">
+                  <Sparkles className="w-9 h-9 text-slate-950" />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  How can ActionOS help you today?
+                </h2>
+                <p className="text-sm text-slate-400 max-w-md mx-auto">
+                  Plan trips, explore destinations, manage home repair services, and execute multi-step AI agent workflows.
+                </p>
+              </div>
 
-                <div className="max-w-[85%] md:max-w-[75%] space-y-3">
-                  <div
-                    className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                      msg.sender === 'user'
-                        ? 'bg-cyan-600 text-white rounded-br-none shadow-md shadow-cyan-600/20'
-                        : 'bg-slate-900/90 text-slate-100 border border-slate-800 rounded-bl-none shadow-md'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
-
-                    <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-800/40 text-[10px] text-slate-400">
-                      {msg.isFallback && (
-                        <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-medium">
-                          Fallback mode (Local rules)
-                        </span>
-                      )}
-                      <span suppressHydrationWarning className="ml-auto opacity-70">
-                        {msg.timestamp}
-                      </span>
+              {/* Category Chips Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-2xl text-left">
+                <button
+                  onClick={() => handleQuickChipClick('Plan a 3 day trip to Hyderabad under ₹10,000')}
+                  className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors">
+                      <Compass className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-200">Plan a Trip</div>
+                      <div className="text-xs text-slate-400">3-day Hyderabad travel itinerary & budget</div>
                     </div>
                   </div>
+                </button>
 
-                  {/* Confirmation Card */}
-                  {msg.confirmationCard && (
-                    <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-500/40 space-y-3 shadow-lg backdrop-blur-md">
-                      <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+                <button
+                  onClick={() => handleQuickChipClick('Find top attractions and places near Charminar')}
+                  className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-200">Explore Places</div>
+                      <div className="text-xs text-slate-400">Attractions, heritage sites & landmarks</div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleQuickChipClick('Book an AC Repair for tomorrow at 10 AM')}
+                  className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors">
+                      <Wrench className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-200">OneWayFix Services</div>
+                      <div className="text-xs text-slate-400">Book AC repair, plumbing & appliance fixes</div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleQuickChipClick('Explain what Model Context Protocol (MCP) is')}
+                  className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 hover:bg-slate-900 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-slate-950 transition-colors">
+                      <Cpu className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-200">General Questions</div>
+                      <div className="text-xs text-slate-400">AI tech, coding, math & technology</div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Chat Messages Stream */
+            messages.map((m) => (
+              <div
+                key={m.id}
+                className={`flex flex-col ${
+                  m.sender === 'user' ? 'items-end' : 'items-start'
+                }`}
+              >
+                <div
+                  className={`max-w-3xl rounded-2xl p-4 sm:p-5 text-sm sm:text-base shadow-sm ${
+                    m.sender === 'user'
+                      ? 'bg-cyan-600 text-white rounded-br-none'
+                      : 'bg-slate-900 text-slate-100 border border-slate-800/80 rounded-bl-none'
+                  }`}
+                >
+                  {/* Message Content */}
+                  <div className="whitespace-pre-wrap leading-relaxed space-y-2">
+                    {m.text}
+                  </div>
+
+                  {/* Inline Tool Execution Logs (Collapsible Step Indicator) */}
+                  {m.toolLogs && m.toolLogs.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-slate-800">
+                      <button
+                        onClick={() =>
+                          setExpandedLogs((prev) => ({
+                            ...prev,
+                            [m.id]: !prev[m.id],
+                          }))
+                        }
+                        className="flex items-center gap-2 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
+                      >
+                        <Cpu className="w-3.5 h-3.5" />
+                        <span>
+                          {m.toolLogs.length} Agent Tool Action{m.toolLogs.length > 1 ? 's' : ''} Executed
+                        </span>
+                        {expandedLogs[m.id] ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+
+                      {expandedLogs[m.id] && (
+                        <div className="mt-2 space-y-1.5 text-xs bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+                          {m.toolLogs.map((log) => (
+                            <div key={log.id} className="flex items-center justify-between text-slate-300">
+                              <span className="font-mono text-cyan-300">⚡ {log.name}</span>
+                              <span className="text-slate-500 text-[10px]">
+                                {log.status} ({log.durationMs || 10}ms)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Medium Risk Confirmation Card */}
+                  {m.confirmationCard && (
+                    <div className="mt-4 p-4 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200">
+                      <div className="flex items-center gap-2 font-bold text-amber-400 mb-2">
                         <ShieldAlert className="w-5 h-5" />
-                        <span>{msg.confirmationCard.title}</span>
+                        <span>{m.confirmationCard.title}</span>
                       </div>
-
-                      <div className="space-y-1 text-xs text-slate-300 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
-                        {msg.confirmationCard.details.map((d, i) => (
-                          <div key={i} className="flex justify-between py-1 border-b border-slate-800/60 last:border-0">
-                            <span className="text-slate-400">{d.label}:</span>
-                            <span className="font-medium text-slate-100">{d.value}</span>
+                      <div className="space-y-1.5 text-xs mb-4">
+                        {m.confirmationCard.details.map((d: any, idx: number) => (
+                          <div key={idx} className="flex justify-between border-b border-amber-500/10 py-1">
+                            <span className="text-amber-300/80">{d.label}:</span>
+                            <span className="font-semibold text-amber-100">{d.value}</span>
                           </div>
                         ))}
                       </div>
-
-                      <div className="flex items-center gap-3 pt-1">
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => handleConfirmationAction('confirm', msg.confirmationCard?.pendingAction)}
-                          disabled={isLoading}
-                          className="flex-1 py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-600/20"
+                          onClick={() =>
+                            handleSendMessage(undefined, {
+                              action: 'confirm',
+                              pendingAction: m.confirmationCard.pendingAction,
+                            })
+                          }
+                          className="flex-1 py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
                         >
-                          <CheckCircle2 className="w-4 h-4" />
-                          Confirm & Book
+                          <CheckCircle2 className="w-4 h-4" /> Confirm & Submit
                         </button>
                         <button
-                          onClick={() => handleConfirmationAction('cancel', msg.confirmationCard?.pendingAction)}
-                          disabled={isLoading}
-                          className="py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-all border border-slate-700"
+                          onClick={() =>
+                            handleSendMessage(undefined, {
+                              action: 'cancel',
+                              pendingAction: m.confirmationCard.pendingAction,
+                            })
+                          }
+                          className="py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors"
                         >
-                          <XCircle className="w-4 h-4 text-slate-400" />
                           Cancel
                         </button>
                       </div>
                     </div>
                   )}
-
-                  {/* Booking Result Card */}
-                  {msg.bookingCard && (
-                    <div className="p-4 rounded-xl bg-slate-900 border border-cyan-500/30 space-y-3 shadow-xl">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-cyan-400 font-semibold text-sm">
-                          <Wrench className="w-5 h-5" />
-                          <span>OneWayFix Booking Details</span>
-                        </div>
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                          {msg.bookingCard.status}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/80 p-3 rounded-lg border border-slate-800">
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">BOOKING ID</span>
-                          <span className="font-mono text-cyan-300 font-semibold">{msg.bookingCard.bookingId}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">SERVICE</span>
-                          <span className="font-medium text-slate-200">{msg.bookingCard.service}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">CUSTOMER</span>
-                          <span className="text-slate-300">{msg.bookingCard.customerName}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">TIME</span>
-                          <span className="text-slate-300">{msg.bookingCard.preferredTime}</span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-slate-400 block text-[10px]">SERVICE ADDRESS</span>
-                          <span className="text-slate-300 font-mono text-[11px]">{msg.bookingCard.address}</span>
-                        </div>
-                      </div>
-
-                      <a
-                        href="https://onewayfix.com"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium transition-colors pt-1"
-                      >
-                        Manage booking on OneWayFix.com <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  )}
                 </div>
+
+                <span className="text-[10px] text-slate-500 mt-1 px-1">{m.timestamp}</span>
               </div>
-            ))}
+            ))
+          )}
 
-            {isLoading && (
-              <div className="flex items-center gap-2 text-slate-400 text-xs py-2 px-3 rounded-lg bg-slate-900/50 w-fit border border-slate-800">
-                <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
-                <span>Alexa+ is executing Bedrock Converse loop & MCP tools...</span>
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Quick-Start Intent Chips */}
-          <div className="px-4 py-2 border-t border-slate-800/60 bg-slate-900/40 flex items-center gap-2 overflow-x-auto">
-            <span className="text-[11px] text-slate-400 font-medium flex-shrink-0 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Quick-start:
-            </span>
-            {quickChips.map((chip, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSendMessage(chip)}
-                disabled={isLoading}
-                className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium border border-cyan-500/30 hover:bg-cyan-500/10 hover:border-cyan-400 text-slate-300 hover:text-cyan-300 transition-all flex-shrink-0 bg-slate-950/60"
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-
-          {/* Input & Mic Controls */}
-          <div className="p-4 border-t border-slate-800 bg-slate-900/80">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="flex items-center gap-2"
-            >
-              {isSpeechSupported && (
-                <button
-                  type="button"
-                  onClick={toggleListening}
-                  title={isListening ? 'Stop Listening' : 'Speak Voice Command'}
-                  className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all border ${
-                    isListening
-                      ? 'bg-rose-600 text-white border-rose-500 animate-pulse shadow-lg shadow-rose-600/30'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                  }`}
-                >
-                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-cyan-400" />}
-                </button>
-              )}
-
-              <input
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Ask Alexa+ to book a repair, check status, or list services..."
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-4 h-10 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
-              />
-
-              <button
-                type="submit"
-                disabled={!inputText.trim() || isLoading}
-                className="w-10 h-10 flex items-center justify-center rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:hover:bg-cyan-600 text-white transition-all shadow-md shadow-cyan-600/20"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </form>
-          </div>
-        </section>
-
-        {/* Right Column: MCP Live Audit Panel */}
-        <aside className="w-full md:w-80 glass-panel rounded-2xl border border-slate-800 p-4 flex flex-col space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2">
-              <Server className="w-5 h-5 text-cyan-400" />
-              <h2 className="font-semibold text-sm text-slate-200">What Alexa+ did</h2>
+          {isLoading && (
+            <div className="flex items-center gap-3 text-cyan-400 text-xs font-medium bg-slate-900/60 p-3 rounded-xl border border-slate-800 w-fit">
+              <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+              <span>ActionOS Agent reasoning and executing MCP tools...</span>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-              MCP STREAM
-            </span>
-          </div>
+          )}
 
-          <div className="flex-1 overflow-y-auto space-y-2.5 max-h-[520px]">
-            {toolLogs.map((log) => (
-              <div
-                key={log.id}
-                className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5 text-xs shadow-sm hover:border-slate-700 transition-colors"
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Input Controls Footer */}
+        <div className="p-4 border-t border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+          <div className="max-w-4xl mx-auto flex items-center gap-2">
+            {isSpeechSupported && (
+              <button
+                onClick={toggleVoiceInput}
+                className={`p-3 rounded-xl transition-all ${
+                  isListening
+                    ? 'bg-rose-500 text-white animate-pulse'
+                    : 'bg-slate-900 text-slate-400 hover:text-cyan-400 hover:bg-slate-800'
+                }`}
+                title="Voice Input (Speech-to-Text)"
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-cyan-300 font-medium text-[11px] flex items-center gap-1.5">
-                    <Wrench className="w-3.5 h-3.5 text-cyan-400" /> {log.name}
-                  </span>
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+            )}
 
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                      log.status === 'success'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : log.status === 'waiting'
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                    }`}
-                  >
-                    {log.status}
-                  </span>
-                </div>
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+              placeholder="Ask ActionOS anything (e.g. 'Plan a 3 day trip to Hyderabad', 'Book AC repair')..."
+              className="flex-1 bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500/60 transition-all"
+            />
 
-                <p className="text-slate-300 text-[11px] leading-snug">{log.resultSummary}</p>
-
-                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/40">
-                  <span suppressHydrationWarning className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-500" /> {log.timestamp}
-                  </span>
-                  {log.durationMs !== undefined && <span>{log.durationMs}ms</span>}
-                </div>
-              </div>
-            ))}
+            <button
+              onClick={() => handleSendMessage()}
+              disabled={!inputText.trim() || isLoading}
+              className="p-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:hover:bg-cyan-500 text-slate-950 font-bold transition-all shadow-md shadow-cyan-500/20"
+            >
+              <Send className="w-5 h-5" />
+            </button>
           </div>
-
-          <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Audit Standard: MCP 2025-11-25</span>
-            <span className="text-cyan-400 font-medium">Streamable HTTP</span>
-          </div>
-        </aside>
+        </div>
       </main>
 
-      {/* Footer Disclaimer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-3 text-center text-xs text-slate-500">
-        Demo data. Sandbox backend modeled on OneWayFix.
-      </footer>
+      {/* 3. Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Settings className="w-5 h-5 text-cyan-400" /> ActionOS Settings
+              </h3>
+              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              {/* AI Model Provider */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-400">AI Model Provider</label>
+                <select
+                  value={modelProvider}
+                  onChange={(e) => setModelProvider(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200"
+                >
+                  <option value="gemini">Google Gemini (Default)</option>
+                  <option value="ollama">Ollama (Local LLM)</option>
+                  <option value="bedrock">Amazon Bedrock (Optional Historical)</option>
+                </select>
+              </div>
+
+              {/* Gemini Model */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-400">Gemini Model</label>
+                <input
+                  type="text"
+                  value={geminiModel}
+                  onChange={(e) => setGeminiModel(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs"
+                />
+              </div>
+
+              {/* Connected MCP Servers */}
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                  <Server className="w-4 h-4 text-cyan-400" /> Connected MCP Servers
+                </label>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span className="font-mono text-slate-200">onewayfix</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">Connected</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span className="font-mono text-slate-200">web-search</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">Connected</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span className="font-mono text-slate-200">travel</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">Connected</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowSettings(false)}
+              className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-sm transition-colors"
+            >
+              Save Settings
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Profile Modal */}
+      {showProfile && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <User className="w-5 h-5 text-cyan-400" /> User Profile & Preferences
+              </h3>
+              <button onClick={() => setShowProfile(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-400">Full Name</label>
+                <input
+                  type="text"
+                  value={userProfile.name}
+                  onChange={(e) => setUserProfile({ ...userProfile, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-400">Home City</label>
+                <input
+                  type="text"
+                  value={userProfile.city}
+                  onChange={(e) => setUserProfile({ ...userProfile, city: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-400">Travel Interest</label>
+                <input
+                  type="text"
+                  value={userProfile.travelPreference}
+                  onChange={(e) => setUserProfile({ ...userProfile, travelPreference: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowProfile(false)}
+              className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-sm transition-colors"
+            >
+              Save Profile
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

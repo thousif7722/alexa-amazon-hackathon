@@ -1,7 +1,6 @@
 import http from 'node:http';
 import { z } from '@actionos/validation';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ToolExecutionResult } from '@actionos/types';
@@ -12,13 +11,18 @@ import {
   cancelBookingTool,
   searchWebTool,
   openWebPageTool,
+  searchPlacesTool,
+  planItineraryTool,
+  calculateRouteTool,
+  searchHotelsTool,
+  externalServiceAdapterTool,
 } from '@actionos/tools';
 
 export const MCP_SERVER_VERSION = '1.0.0';
 const PORT = process.env.MCP_PORT ? parseInt(process.env.MCP_PORT, 10) : 3001;
 
 export const mcpServer = new McpServer({
-  name: 'ActionOS OneWayFix MCP Server',
+  name: 'ActionOS MCP Server',
   version: MCP_SERVER_VERSION,
 });
 
@@ -135,6 +139,94 @@ mcpServer.tool(
   }
 );
 
+// 7. search_places
+mcpServer.tool(
+  'search_places',
+  searchPlacesTool.description,
+  {
+    destination: z.string().describe('Destination city name (e.g. Hyderabad, Goa)'),
+    category: z.string().optional().describe('Filter by category (e.g. heritage, beach, food)'),
+  },
+  async (args) => {
+    const result = (await searchPlacesTool.execute(args)) as ToolExecutionResult;
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
+      isError: !result.success,
+    };
+  }
+);
+
+// 8. plan_itinerary
+mcpServer.tool(
+  'plan_itinerary',
+  planItineraryTool.description,
+  {
+    destination: z.string().describe('Destination city (e.g. Hyderabad, Goa)'),
+    days: z.number().optional().default(2).describe('Number of trip days'),
+    budgetINR: z.number().optional().describe('Approximate total budget in INR'),
+    travelersCount: z.number().optional().default(1).describe('Number of travelers'),
+    interests: z.string().optional().describe('Trip focus or interest keywords'),
+  },
+  async (args) => {
+    const result = (await planItineraryTool.execute(args)) as ToolExecutionResult;
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
+      isError: !result.success,
+    };
+  }
+);
+
+// 9. calculate_route
+mcpServer.tool(
+  'calculate_route',
+  calculateRouteTool.description,
+  {
+    origin: z.string().describe('Starting location'),
+    destination: z.string().describe('Destination location'),
+    mode: z.string().optional().default('driving').describe('Mode of transport: driving, transit, train, flight'),
+  },
+  async (args) => {
+    const result = (await calculateRouteTool.execute(args)) as ToolExecutionResult;
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
+      isError: !result.success,
+    };
+  }
+);
+
+// 10. search_hotels
+mcpServer.tool(
+  'search_hotels',
+  searchHotelsTool.description,
+  {
+    destination: z.string().describe('Destination city'),
+    maxPriceINR: z.number().optional().describe('Maximum budget per night in INR'),
+  },
+  async (args) => {
+    const result = (await searchHotelsTool.execute(args)) as ToolExecutionResult;
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
+      isError: !result.success,
+    };
+  }
+);
+
+// 11. external_service_request
+mcpServer.tool(
+  'external_service_request',
+  externalServiceAdapterTool.description,
+  {
+    platform: z.string().describe('Platform name (rapido, zomato, blinkit, swiggy, uber)'),
+    query: z.string().optional().describe('Search term or destination'),
+  },
+  async (args) => {
+    const result = (await externalServiceAdapterTool.execute(args)) as ToolExecutionResult;
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }],
+      isError: !result.success,
+    };
+  }
+);
 
 export async function startServer() {
   const isStdio = process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio';
@@ -146,7 +238,7 @@ export async function startServer() {
     return;
   }
 
-  // Streamable HTTP Transport for Alexa+ and standard MCP clients
+  // Streamable HTTP Transport for MCP clients
   const httpTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });

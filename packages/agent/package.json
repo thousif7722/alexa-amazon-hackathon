@@ -10,10 +10,11 @@
   },
   "dependencies": {
     "@actionos/config": "workspace:*",
+    "@actionos/tools": "workspace:*",
     "@actionos/types": "workspace:*",
     "@actionos/validation": "workspace:*",
-    "@actionos/tools": "workspace:*",
-    "@aws-sdk/client-bedrock-runtime": "^3.500.0"
+    "@aws-sdk/client-bedrock-runtime": "^3.500.0",
+    "@google/genai": "^2.27.0"
   },
   "devDependencies": {
     "typescript": "^5.3.3"
