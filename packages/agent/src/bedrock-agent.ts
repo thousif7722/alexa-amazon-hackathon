@@ -695,16 +695,48 @@ Home appliance and repair issues usually stem from:
     }
   }
 
-  // Default fallback conversational response (No unwanted booking card!)
+  // Greetings intent
+  if (
+    trimmed === 'hi' ||
+    trimmed === 'hello' ||
+    trimmed === 'hey' ||
+    trimmed.startsWith('hi ') ||
+    trimmed.startsWith('hello ') ||
+    trimmed.startsWith('hey ')
+  ) {
+    return {
+      text: `${warningMsg ? `⚠️ ${warningMsg}\n\n` : ''}Hello! I am **ActionOS**, your AI action agent powered by Amazon Bedrock Nova & Model Context Protocol tools.\n\nI can answer questions, search the live web, extract web page content, or help you manage OneWayFix home services. How can I assist you today?`,
+    };
+  }
+
+  // Dynamic fallback: run search_web for any general query
+  const startTime = Date.now();
+  const searchRes = await executeMcpTool('search_web', { query: prompt, maxResults: 5 }, context, mcpServerUrl);
+  const duration = Date.now() - startTime;
+  const searchData: any = searchRes.data || {};
+
+  if (searchRes.success && searchData.results && Array.isArray(searchData.results) && searchData.results.length > 0) {
+    const formatted = searchData.results
+      .map((r: any, idx: number) => `**${idx + 1}. [${r.title}](${r.url})**\n_${r.snippet}_\n`)
+      .join('\n');
+
+    return {
+      text: `${warningMsg ? `⚠️ ${warningMsg}\n\n` : ''}🔍 **Web Information for "${prompt}"**:\n\n${formatted}\n\n*ActionOS AI Web Search Tool Execution (Provider: ${searchData.provider || 'mock'}).*`,
+      toolLogs: [
+        {
+          id: `log-${Date.now()}`,
+          name: 'search_web',
+          status: 'success',
+          resultSummary: `Found ${searchData.results.length} results for query "${prompt}"`,
+          timestamp: new Date().toLocaleTimeString(),
+          durationMs: duration,
+        },
+      ],
+    };
+  }
+
+  // Final fallback response
   return {
-    text: `Hello! I am **Alexa+** powered by Amazon Bedrock Nova & OneWayFix MCP tools.
-
-I can help you with:
-• **Technical Advice**: Ask troubleshooting questions about AC, plumbing, electrical, or appliances.
-• **Service Catalog**: Ask *"What services do you offer?"*
-• **Bookings**: Ask *"Book an AC repair for tomorrow"*
-• **Status**: Ask *"Check status for OWF-1001"*
-
-How can I help you right now?`,
+    text: `${warningMsg ? `⚠️ ${warningMsg}\n\n` : ''}I am ActionOS, your AI action agent. I am ready to help you with web search, page extraction, or OneWayFix home service requests. What would you like me to look up or do for you?`,
   };
 }
