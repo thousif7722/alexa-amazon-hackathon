@@ -1,0 +1,18 @@
+{
+  "name": "@actionos/tools",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').copyFileSync('src/onewayfix/services.seed.json', 'dist/onewayfix/services.seed.json')\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actionos/types": "workspace:*",
+    "@actionos/validation": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

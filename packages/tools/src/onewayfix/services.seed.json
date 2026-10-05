@@ -1,0 +1,170 @@
+[
+  {
+    "id": "srv-ac-repair",
+    "name": "AC Repair & Deep Service",
+    "category": "Home Appliances",
+    "description": "Comprehensive AC servicing, gas refill, filter cleaning, and cooling repair.",
+    "price": 699,
+    "active": true
+  },
+  {
+    "id": "srv-ac-install",
+    "name": "AC Installation & Uninstallation",
+    "category": "Home Appliances",
+    "description": "New AC unit installation, old unit removal, bracket and piping setup.",
+    "price": 999,
+    "active": true
+  },
+  {
+    "id": "srv-washing-machine",
+    "name": "Washing Machine Repair & Service",
+    "category": "Home Appliances",
+    "description": "Drum motor repair, water drain fix, noise reduction, and PCB board servicing.",
+    "price": 599,
+    "active": true
+  },
+  {
+    "id": "srv-refrigerator",
+    "name": "Refrigerator Cooling & Compressor Repair",
+    "category": "Home Appliances",
+    "description": "Gas leak repair, thermostat replacement, defrosting issue fix, and compressor inspection.",
+    "price": 799,
+    "active": true
+  },
+  {
+    "id": "srv-microwave",
+    "name": "Microwave Oven Repair",
+    "category": "Home Appliances",
+    "description": "Magnetron replacement, turntable fix, door latch repair, and heating element check.",
+    "price": 449,
+    "active": true
+  },
+  {
+    "id": "srv-geyser",
+    "name": "Water Heater (Geyser) Repair & Install",
+    "category": "Home Appliances",
+    "description": "Heating element replacement, thermostat calibration, water leak fix, and new geyser setup.",
+    "price": 499,
+    "active": true
+  },
+  {
+    "id": "srv-dishwasher",
+    "name": "Dishwasher Repair & Service",
+    "category": "Home Appliances",
+    "description": "Spray arm cleaning, door seal replacement, pump motor repair, and drainage fix.",
+    "price": 649,
+    "active": true
+  },
+  {
+    "id": "srv-plumbing",
+    "name": "Plumbing Leak Inspection & Repair",
+    "category": "Plumbing & Sanitary",
+    "description": "Pipe leak fixing, tap replacement, blockage clearing, and sanitary fixture installation.",
+    "price": 499,
+    "active": true
+  },
+  {
+    "id": "srv-bathroom-fitting",
+    "name": "Bathroom Fitting & Renovation",
+    "category": "Plumbing & Sanitary",
+    "description": "Tap, shower, flush tank, and basin fitting. Waterproofing and tile grout sealing.",
+    "price": 799,
+    "active": true
+  },
+  {
+    "id": "srv-drain-cleaning",
+    "name": "Drain & Sewer Cleaning",
+    "category": "Plumbing & Sanitary",
+    "description": "High-pressure jetting to clear kitchen, bathroom, and main sewer drain blockages.",
+    "price": 549,
+    "active": true
+  },
+  {
+    "id": "srv-electrical",
+    "name": "Electrical Wiring & Switchboard Fix",
+    "category": "Electrical & Lighting",
+    "description": "Short circuit diagnosis, switchboard installation, MCB replacement, and wiring repair.",
+    "price": 399,
+    "active": true
+  },
+  {
+    "id": "srv-fan-repair",
+    "name": "Ceiling & Exhaust Fan Repair",
+    "category": "Electrical & Lighting",
+    "description": "Capacitor replacement, bearing lubrication, blade balancing, and speed regulator fix.",
+    "price": 299,
+    "active": true
+  },
+  {
+    "id": "srv-light-install",
+    "name": "Light Fixture & LED Installation",
+    "category": "Electrical & Lighting",
+    "description": "Chandelier, panel light, downlight, and LED strip installation with wiring.",
+    "price": 349,
+    "active": true
+  },
+  {
+    "id": "srv-ro-water",
+    "name": "RO Water Purifier Service & Filter Change",
+    "category": "Kitchen Appliances",
+    "description": "TDS check, sediment filter replacement, membrane cleaning, and UV lamp check.",
+    "price": 549,
+    "active": true
+  },
+  {
+    "id": "srv-chimney",
+    "name": "Chimney Deep Cleaning & Repair",
+    "category": "Kitchen Appliances",
+    "description": "Baffle filter degreasing, motor servicing, duct cleaning, and suction check.",
+    "price": 899,
+    "active": true
+  },
+  {
+    "id": "srv-carpenter",
+    "name": "Carpenter Furniture & Door Lock Fix",
+    "category": "Carpentry & Woodwork",
+    "description": "Door lock installation, hinge repair, wardrobe latch fix, and furniture assembly.",
+    "price": 449,
+    "active": true
+  },
+  {
+    "id": "srv-sofa-polish",
+    "name": "Sofa & Furniture Polishing",
+    "category": "Carpentry & Woodwork",
+    "description": "Wood polishing, scratch repair, veneer touch-up, and rattan furniture restoration.",
+    "price": 699,
+    "active": true
+  },
+  {
+    "id": "srv-home-cleaning",
+    "name": "Home Deep Cleaning",
+    "category": "Cleaning Services",
+    "description": "Full flat deep clean: kitchen degreasing, bathroom scrubbing, floor mopping, and dusting.",
+    "price": 1299,
+    "active": true
+  },
+  {
+    "id": "srv-sofa-cleaning",
+    "name": "Sofa & Upholstery Cleaning",
+    "category": "Cleaning Services",
+    "description": "Foam extraction cleaning for sofas, chairs, and mattresses to remove stains and odours.",
+    "price": 799,
+    "active": true
+  },
+  {
+    "id": "srv-pest-control",
+    "name": "Pest Control Treatment",
+    "category": "Pest Control",
+    "description": "Gel-based cockroach treatment, anti-termite spray, and rodent control for homes.",
+    "price": 999,
+    "active": true
+  },
+  {
+    "id": "srv-painting",
+    "name": "Interior Wall Painting",
+    "category": "Painting & Wall Care",
+    "description": "Primer + 2-coat emulsion painting with wall putty, per room or full flat options.",
+    "price": 1499,
+    "active": true
+  }
+]

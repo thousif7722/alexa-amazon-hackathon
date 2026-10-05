@@ -1,0 +1,26 @@
+{
+  "name": "@actionos/mcp-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@actionos/agent": "workspace:*",
+    "@actionos/config": "workspace:*",
+    "@actionos/tools": "workspace:*",
+    "@actionos/types": "workspace:*",
+    "@actionos/validation": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "zod": "^3.22.4"
+  },
+
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

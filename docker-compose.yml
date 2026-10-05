@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  actionos-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: actionos-alexaplus
+    restart: always
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-amazon.nova-lite-v1:0}
+      - MCP_PORT=3001
+      - MCP_SERVER_URL=http://localhost:3001/mcp
+      - ONEWAYFIX_MOCK=${ONEWAYFIX_MOCK:-true}
+      - ONEWAYFIX_API_URL=${ONEWAYFIX_API_URL:-https://api.onewayfix.com/v1}
+      - ONEWAYFIX_API_KEY=${ONEWAYFIX_API_KEY}
+      - OWNER_PASSWORD=${OWNER_PASSWORD:-admin123}
+      - MOCK_DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spy", "http://localhost:3000/", "-O", "/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

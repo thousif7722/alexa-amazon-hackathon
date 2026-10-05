@@ -1,0 +1,15 @@
+{
+  "OWF-1001": {
+    "bookingId": "OWF-1001",
+    "customerName": "Rahul Sharma",
+    "phone": "+91 98765 43210",
+    "service": "AC Repair & Deep Service",
+    "address": "123 MG Road, Koramangala, Bengaluru",
+    "preferredTime": "2026-10-06 10:00 AM",
+    "notes": "AC is not cooling properly",
+    "status": "completed",
+    "source": "OneWayFix Demo",
+    "createdAt": "2026-10-05T09:33:53.746Z",
+    "updatedAt": "2026-10-05T09:36:36.351Z"
+  }
+}
