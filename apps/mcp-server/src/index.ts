@@ -10,6 +10,8 @@ import {
   createBookingRequestTool,
   getBookingStatusTool,
   cancelBookingTool,
+  searchWebTool,
+  openWebPageTool,
 } from '@actionos/tools';
 
 export const MCP_SERVER_VERSION = '1.0.0';
@@ -90,6 +92,41 @@ mcpServer.tool(
   },
   async (args) => {
     const result = (await cancelBookingTool.execute(args)) as ToolExecutionResult;
+    const textMsg = (result.data as any)?.summary || (result.data as any)?.message || JSON.stringify(result, null, 2);
+    return {
+      content: [{ type: 'text', text: typeof textMsg === 'string' ? textMsg : JSON.stringify(textMsg, null, 2) }],
+      isError: !result.success,
+    };
+  }
+);
+
+// 5. search_web
+mcpServer.tool(
+  'search_web',
+  searchWebTool.description,
+  {
+    query: z.string().min(2).max(500).describe('Search query string'),
+    maxResults: z.number().int().min(1).max(10).optional().default(5).describe('Maximum number of search results (1 to 10)'),
+  },
+  async (args) => {
+    const result = (await searchWebTool.execute(args)) as ToolExecutionResult;
+    const textMsg = (result.data as any)?.summary || (result.data as any)?.message || JSON.stringify(result, null, 2);
+    return {
+      content: [{ type: 'text', text: typeof textMsg === 'string' ? textMsg : JSON.stringify(textMsg, null, 2) }],
+      isError: !result.success,
+    };
+  }
+);
+
+// 6. open_web_page
+mcpServer.tool(
+  'open_web_page',
+  openWebPageTool.description,
+  {
+    url: z.string().url().describe('Valid HTTP or HTTPS web page URL to open and extract content from'),
+  },
+  async (args) => {
+    const result = (await openWebPageTool.execute(args)) as ToolExecutionResult;
     const textMsg = (result.data as any)?.summary || (result.data as any)?.message || JSON.stringify(result, null, 2);
     return {
       content: [{ type: 'text', text: typeof textMsg === 'string' ? textMsg : JSON.stringify(textMsg, null, 2) }],

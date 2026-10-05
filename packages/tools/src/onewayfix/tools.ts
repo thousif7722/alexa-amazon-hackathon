@@ -150,8 +150,8 @@ export const createBookingRequestTool: ToolDefinition = {
       }
       parsed.service = matchedService.name;
 
-      // confirmed is ONLY true when the UI sends it via context.isConfirmed
-      const isConfirmed = context?.isConfirmed || false;
+      // confirmed is true when the UI sends it via context.isConfirmed or input.confirmed=true
+      const isConfirmed = context?.isConfirmed || input.confirmed === true;
 
       if (!isConfirmed) {
         const actionId = `act-${Date.now()}`;
@@ -371,8 +371,8 @@ export const cancelBookingTool: ToolDefinition = {
     try {
       const parsed = CancelBookingInputSchema.parse(safeInput);
 
-      // confirmed is ONLY true when UI Confirm button sets context.isConfirmed
-      const isConfirmed = context?.isConfirmed || false;
+      // confirmed is true when UI sends context.isConfirmed or input.confirmed=true
+      const isConfirmed = context?.isConfirmed || input.confirmed === true;
 
       if (!isConfirmed) {
         const actionId = `act-${Date.now()}`;

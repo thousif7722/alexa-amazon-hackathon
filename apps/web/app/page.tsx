@@ -245,6 +245,7 @@ export default function AlexaPlusOneWayFixPage() {
   };
 
   const quickChips = [
+    'Search Hyderabad tourist places',
     'What services do you offer?',
     'Why is my AC not cooling?',
     'Book a washing machine repair for tomorrow',

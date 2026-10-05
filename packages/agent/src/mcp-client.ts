@@ -1,5 +1,5 @@
 import { ToolDefinition, ToolExecutionResult } from '@actionos/types';
-import { oneWayFixTools } from '@actionos/tools';
+import { allTools } from '@actionos/tools';
 
 export interface BedrockToolSpec {
   toolSpec: {
@@ -51,7 +51,7 @@ export async function fetchMcpTools(mcpServerUrl?: string): Promise<ToolDefiniti
     // Server offline or unreachable, fall back to local tool definitions
   }
 
-  return oneWayFixTools;
+  return allTools;
 }
 
 /**
@@ -128,7 +128,7 @@ export async function executeMcpTool(
   }
 
   // Local tool execution fallback
-  const localTool = oneWayFixTools.find((t) => t.name === toolName);
+  const localTool = allTools.find((t: ToolDefinition) => t.name === toolName);
   if (localTool) {
     const localCtx = {
       sessionId: context?.sessionId || `session-${Date.now()}`,

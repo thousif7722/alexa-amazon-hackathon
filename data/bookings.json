@@ -76,5 +76,18 @@
     "source": "OneWayFix API",
     "createdAt": "2026-10-05T09:21:40.278Z",
     "updatedAt": "2026-10-05T09:21:40.293Z"
+  },
+  "OWF-4759": {
+    "bookingId": "OWF-4759",
+    "customerName": "Priya Verma",
+    "phone": "+91 99887 76655",
+    "service": "AC Repair & Deep Service",
+    "address": "45 Park Street, Bengaluru",
+    "preferredTime": "2026-10-07 11:00 AM",
+    "notes": "Please bring ladder [Cancelled: Schedule conflict]",
+    "status": "cancelled",
+    "source": "OneWayFix API",
+    "createdAt": "2026-10-05T18:59:24.274Z",
+    "updatedAt": "2026-10-05T18:59:24.300Z"
   }
 }
