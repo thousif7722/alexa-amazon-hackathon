@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { AuditLogger } from '@actionos/tools';
 import { ModelProvider, ModelProviderOptions, ModelProviderResult, ToolLogEntry } from './types.js';
-import { executeMcpTool } from '../mcp-client.js';
+import { McpManager } from '../mcp-manager.js';
 
 export class GeminiProvider implements ModelProvider {
   name = 'gemini';
@@ -18,22 +18,24 @@ export class GeminiProvider implements ModelProvider {
     const client = this.getClient();
     const sessionId = options.sessionId || `session-${Date.now()}`;
     const userId = options.userId || 'user-default';
-    const mcpServerUrl = options.mcpServerUrl || process.env.MCP_SERVER_URL || 'http://localhost:3001/mcp';
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     const toolLogs: ToolLogEntry[] = [];
+    const mcpManager = new McpManager();
 
     if (!client) {
-      // Fallback mode if GEMINI_API_KEY is missing
-      return this.runLocalFallback(options, toolLogs, 'GEMINI_API_KEY environment variable is not configured.');
+      return this.runLocalFallback(options, toolLogs, 'GEMINI_API_KEY environment variable is not configured.', mcpManager);
     }
 
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     const maxIterations = options.maxIterations || (process.env.MAX_TOOL_ITERATIONS ? parseInt(process.env.MAX_TOOL_ITERATIONS, 10) : 8);
 
-    // Convert MCP tools to Gemini functionDeclarations format
-    const functionDeclarations = (options.tools || []).map((tool: any) => {
-      const inputSchema = tool.inputSchema || tool.parameters || { type: 'object', properties: {} };
+    // Discover tools across all MCP servers and normalize declarations
+    const discoveredTools = await mcpManager.discoverAllTools();
+
+    // Convert AgentTool registry to Gemini functionDeclarations format
+    const functionDeclarations = discoveredTools.map((tool) => {
+      const inputSchema = tool.inputSchema || { type: 'object', properties: {} };
       return {
-        name: tool.name,
+        name: tool.geminiName, // Safe Gemini function name: server__tool
         description: tool.description,
         parameters: inputSchema,
       };
@@ -103,26 +105,28 @@ export class GeminiProvider implements ModelProvider {
           };
         }
 
-        // Execute function calls
+        // Execute function calls using McpManager
         const functionResponseParts: any[] = [];
 
         for (const fcPart of functionCalls) {
           const fc = fcPart.functionCall;
           if (!fc) continue;
-          const toolName: string = fc.name || 'unknown_tool';
+
+          const geminiToolName: string = fc.name || 'unknown_tool';
           const args: Record<string, unknown> = (fc.args as Record<string, unknown>) || {};
           const startTime = Date.now();
 
-          const result = await executeMcpTool(toolName, args, { sessionId, userId }, mcpServerUrl);
+          // ActionOS executes the tool via McpManager (Gemini NEVER calls MCP server directly)
+          const result = await mcpManager.executeTool(geminiToolName, args, { sessionId, userId });
           const duration = Date.now() - startTime;
 
           // Check if operation requires human confirmation
           if (result.requiresConfirmation && result.pendingAction) {
             toolLogs.push({
               id: `log-${Date.now()}`,
-              name: toolName,
+              name: geminiToolName,
               status: 'waiting',
-              resultSummary: `Awaiting human confirmation for ${toolName}`,
+              resultSummary: `Awaiting human confirmation for ${geminiToolName}`,
               timestamp: new Date().toLocaleTimeString(),
               durationMs: duration,
             });
@@ -140,7 +144,7 @@ export class GeminiProvider implements ModelProvider {
               requiresConfirmation: true,
               pendingAction: result.pendingAction,
               confirmationCard: {
-                title: `Authorize ${toolName.replace(/_/g, ' ').toUpperCase()}`,
+                title: `Authorize ${geminiToolName.replace(/__/g, ' ').replace(/_/g, ' ').toUpperCase()}`,
                 details,
                 pendingAction: result.pendingAction,
               },
@@ -150,10 +154,10 @@ export class GeminiProvider implements ModelProvider {
 
           toolLogs.push({
             id: `log-${Date.now()}`,
-            name: toolName,
+            name: geminiToolName,
             status: result.success ? 'success' : 'failed',
             resultSummary: result.success
-              ? `Executed ${toolName} successfully`
+              ? `Executed ${geminiToolName} successfully`
               : `Execution error: ${result.error || 'Failed'}`,
             timestamp: new Date().toLocaleTimeString(),
             durationMs: duration,
@@ -161,7 +165,7 @@ export class GeminiProvider implements ModelProvider {
 
           functionResponseParts.push({
             functionResponse: {
-              name: toolName,
+              name: geminiToolName,
               response: {
                 output: result.data || { result: result.error || 'Success' },
               },
@@ -187,7 +191,7 @@ export class GeminiProvider implements ModelProvider {
           details: { message: err.message },
         });
 
-        return this.runLocalFallback(options, toolLogs, `Gemini API Error: ${err.message}`);
+        return this.runLocalFallback(options, toolLogs, `Gemini API Error: ${err.message}`, mcpManager);
       }
     }
 
@@ -200,13 +204,14 @@ export class GeminiProvider implements ModelProvider {
   private async runLocalFallback(
     options: ModelProviderOptions,
     toolLogs: ToolLogEntry[],
-    warningMsg?: string
+    warningMsg?: string,
+    mcpManager?: McpManager
   ): Promise<ModelProviderResult> {
+    const mgr = mcpManager || new McpManager();
     const prompt = options.prompt || '';
     const trimmed = prompt.toLowerCase();
     const sessionId = options.sessionId || `session-${Date.now()}`;
     const userId = options.userId || 'user-default';
-    const mcpServerUrl = options.mcpServerUrl || process.env.MCP_SERVER_URL || 'http://localhost:3001/mcp';
     const context = { sessionId, userId };
 
     // Greetings
@@ -230,13 +235,13 @@ export class GeminiProvider implements ModelProvider {
       const urlMatch = prompt.match(/https?:\/\/[^\s]+/i);
       const targetUrl = urlMatch ? urlMatch[0] : 'https://example.com/hyderabad-tourism-guide';
       const startTime = Date.now();
-      const result = await executeMcpTool('open_web_page', { url: targetUrl }, context, mcpServerUrl);
+      const result = await mgr.executeTool('web__open_web_page', { url: targetUrl }, context);
       const duration = Date.now() - startTime;
       const data: any = result.data || {};
 
       toolLogs.push({
         id: `log-${Date.now()}`,
-        name: 'open_web_page',
+        name: 'web__open_web_page',
         status: result.success ? 'success' : 'failed',
         resultSummary: result.success ? `Opened ${data.url} - ${data.title}` : result.error || 'Failed',
         timestamp: new Date().toLocaleTimeString(),
@@ -254,7 +259,7 @@ export class GeminiProvider implements ModelProvider {
 
     // General Fallback: Execute search_web tool dynamically
     const startTime = Date.now();
-    const searchRes = await executeMcpTool('search_web', { query: prompt, maxResults: 5 }, context, mcpServerUrl);
+    const searchRes = await mgr.executeTool('web__search_web', { query: prompt, maxResults: 5 }, context);
     const duration = Date.now() - startTime;
     const searchData: any = searchRes.data || {};
 
@@ -265,7 +270,7 @@ export class GeminiProvider implements ModelProvider {
 
       toolLogs.push({
         id: `log-${Date.now()}`,
-        name: 'search_web',
+        name: 'web__search_web',
         status: 'success',
         resultSummary: `Found ${searchData.results.length} results for query "${prompt}"`,
         timestamp: new Date().toLocaleTimeString(),

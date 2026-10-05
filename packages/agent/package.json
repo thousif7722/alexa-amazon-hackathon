@@ -14,7 +14,8 @@
     "@actionos/types": "workspace:*",
     "@actionos/validation": "workspace:*",
     "@aws-sdk/client-bedrock-runtime": "^3.500.0",
-    "@google/genai": "^2.27.0"
+    "@google/genai": "^2.27.0",
+    "@modelcontextprotocol/sdk": "^1.0.1"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

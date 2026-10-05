@@ -60,9 +60,8 @@ mcpServer.tool(
   },
   async (args) => {
     const result = (await createBookingRequestTool.execute(args)) as ToolExecutionResult;
-    const textMsg = (result.data as any)?.summary || (result.data as any)?.message || JSON.stringify(result, null, 2);
     return {
-      content: [{ type: 'text', text: typeof textMsg === 'string' ? textMsg : JSON.stringify(textMsg, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       isError: !result.success,
     };
   }
@@ -77,9 +76,8 @@ mcpServer.tool(
   },
   async (args) => {
     const result = (await getBookingStatusTool.execute(args)) as ToolExecutionResult;
-    const textMsg = (result.data as any)?.summary || (result.data as any)?.message || JSON.stringify(result, null, 2);
     return {
-      content: [{ type: 'text', text: typeof textMsg === 'string' ? textMsg : JSON.stringify(textMsg, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       isError: !result.success,
     };
   }
@@ -96,9 +94,8 @@ mcpServer.tool(
   },
   async (args) => {
     const result = (await cancelBookingTool.execute(args)) as ToolExecutionResult;
-    const textMsg = (result.data as any)?.summary || (result.data as any)?.message || JSON.stringify(result, null, 2);
     return {
-      content: [{ type: 'text', text: typeof textMsg === 'string' ? textMsg : JSON.stringify(textMsg, null, 2) }],
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       isError: !result.success,
     };
   }

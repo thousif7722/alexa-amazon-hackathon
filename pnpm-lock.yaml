@@ -136,6 +136,9 @@ importers:
       '@google/genai':
         specifier: ^2.27.0
         version: 2.27.0(@modelcontextprotocol/sdk@1.32.0(zod@3.25.76))
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.1
+        version: 1.32.0(zod@3.25.76)
     devDependencies:
       typescript:
         specifier: ^5.3.3

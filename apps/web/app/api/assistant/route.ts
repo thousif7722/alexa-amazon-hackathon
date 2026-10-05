@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { runBedrockNovaAgent } from '@actionos/agent';
+import { runActionOSAgent } from '@actionos/agent';
 import { z } from '@actionos/validation';
 
 export const runtime = 'nodejs';
 
-// Simple sliding-window rate limiter: max 30 requests per minute per IP
+// Rate limiter: max 40 requests per minute per IP
 const rateMap = new Map<string, number[]>();
-const MAX_REQUESTS_PER_MIN = 30;
+const MAX_REQUESTS_PER_MIN = 40;
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -22,8 +22,12 @@ function checkRateLimit(ip: string): boolean {
 }
 
 const RequestSchema = z.object({
-  message: z.string().optional().default(''),
+  prompt: z.string().optional(),
+  message: z.string().optional(),
   messages: z.array(z.any()).optional(),
+  sessionId: z.string().optional(),
+  userId: z.string().optional(),
+  modelProvider: z.string().optional(),
   confirmationResponse: z
     .object({
       action: z.enum(['confirm', 'cancel']),
@@ -39,7 +43,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           text: 'Rate limit exceeded. Please wait a moment before sending another message.',
-          error: 'Rate limit exceeded (30 req/min).',
+          error: 'Rate limit exceeded (40 req/min).',
         },
         { status: 429 }
       );
@@ -55,14 +59,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const { message, messages, confirmationResponse } = parsed.data;
+    const { prompt, message, messages, sessionId, userId, modelProvider, confirmationResponse } = parsed.data;
+    const userPrompt = prompt || message || '';
 
-    const result = await runBedrockNovaAgent({
-      prompt: message,
+    // Preserve session continuity if provided, otherwise generate fallback ID
+    const activeSessionId = sessionId || `session-${Date.now()}`;
+    const activeUserId = userId || 'user-web-demo';
+
+    const result = await runActionOSAgent({
+      prompt: userPrompt,
       messages,
       confirmationResponse: confirmationResponse as any,
-      sessionId: `web-session-${Date.now()}`,
-      userId: 'user-web-demo',
+      sessionId: activeSessionId,
+      userId: activeUserId,
+      modelProvider: modelProvider || process.env.MODEL_PROVIDER || 'gemini',
     });
 
     return NextResponse.json(result);

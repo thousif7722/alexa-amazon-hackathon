@@ -31,6 +31,17 @@ export interface ToolExecutionContext {
   isConfirmed?: boolean;
 }
 
+export interface AgentTool {
+  id: string;               // e.g. "travel__search_places"
+  geminiName: string;       // e.g. "travel__search_places"
+  serverName: string;       // e.g. "travel"
+  mcpToolName: string;      // e.g. "search_places"
+  description: string;
+  inputSchema: JSONSchema;
+  riskLevel: RiskLevel;
+  source: 'mcp' | 'local';
+}
+
 export interface ToolExecutionResult<T = unknown> {
   success: boolean;
   toolName: string;
